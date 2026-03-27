@@ -423,8 +423,8 @@ function renderTable() {
       : '—';
 
     const iconHtml = iconUrl
-      ? `<img class="item-icon" src="${iconUrl}" alt="" onerror="this.outerHTML='<div class=\\"item-icon-placeholder\\">?</div>'">`
-      : `<div class="item-icon-placeholder">?</div>`;
+      ? `<img class="item-icon" data-src="${iconUrl}" alt="">`
+      : `<div class="item-icon-placeholder"></div>`;
 
     return `<tr>
       <td>
@@ -443,6 +443,16 @@ function renderTable() {
       <td class="hide-mobile">${roiDisplay}</td>
     </tr>`;
   }).join('');
+
+  // Set icon src via JS to avoid any inline attribute escaping issues
+  tbody.querySelectorAll('img.item-icon[data-src]').forEach(img => {
+    img.onerror = function() {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'item-icon-placeholder';
+      this.replaceWith(placeholder);
+    };
+    img.src = img.dataset.src;
+  });
 
   const profItems = items.filter(i => i.profit !== null && i.profit > 0);
   const avgProfit = profItems.length
