@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSRS Crafting Profit Calculator — Dragonhide, Jewellery & More</title>
+<meta name="description" content="Find profitable items to craft in Old School RuneScape. Dragonhide bodies, gem jewellery, battlestaves and more — live GE prices.">
+<!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=YOUR_ADSENSE_PUB_ID" crossorigin="anonymous"></script> -->
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<nav class="site-nav">
+  <a href="/" class="nav-brand">⚗️ AlchTracker</a>
+  <div class="nav-links">
+    <a href="/">High Alch</a>
+    <a href="/superheat.html">Superheat</a>
+    <a href="/flipping.html">GE Flipping</a>
+    <a href="/crafting.html" class="active">Crafting</a>
+    <a href="/guide.html">Guide</a>
+  </div>
+</nav>
+
+<header>
+  <span class="rune-icon">🪡</span>
+  <h1>Crafting Profit Calculator</h1>
+  <p class="subtitle">Old School RuneScape · Dragonhide, jewellery & battlestaves</p>
+  <div class="header-meta">
+    <div class="meta-pill cache-status"><span id="last-updated">Loading…</span><span class="next-update" id="next-update"></span></div>
+  </div>
+</header>
+
+<div class="ad-leaderboard"><!-- AdSense leaderboard 728×90 --></div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="setCategory('dhide')">Dragonhide</button>
+  <button class="tab-btn" onclick="setCategory('jewellery')">Jewellery</button>
+  <button class="tab-btn" onclick="setCategory('battlestaves')">Battlestaves</button>
+</div>
+
+<div class="controls" style="justify-content:flex-start;">
+  <select id="sort-select">
+    <option value="profit-desc">Profit: High → Low</option>
+    <option value="roi-desc">ROI %: High → Low</option>
+    <option value="name-asc">Name: A → Z</option>
+  </select>
+</div>
+
+<div class="stats-bar" id="stats-bar"><div class="stat-item">Loading…</div></div>
+
+<div class="page-body">
+  <div class="table-wrap">
+    <div class="loading" id="loading-msg"><span class="spinner"></span>Fetching prices…</div>
+    <table id="main-table" style="display:none">
+      <thead><tr>
+        <th style="min-width:190px">Item</th>
+        <th class="num hide-mobile">Materials</th>
+        <th class="num">Product price</th>
+        <th class="num sorted">Profit</th>
+        <th class="num hide-mobile">ROI %</th>
+        <th class="num hide-mobile">Crafting XP</th>
+        <th class="num hide-mobile">Buy limit</th>
+      </tr></thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+  <div class="ad-sidebar"><!-- AdSense rectangle 300×250 --></div>
+</div>
+
+<div class="prose-page" style="padding-top:1.5rem;">
+  <div class="tip-box"><p>Profit is calculated as product GE price minus the cost of all materials. Some items require thread (1gp each) or a needle — these small costs are included where relevant. Dragonhide bodies require 3 hides and a needle + thread.</p></div>
+</div>
+
+<footer class="site-footer">
+  Prices from <a href="https://prices.runescape.wiki" target="_blank">prices.runescape.wiki</a> ·
+  Not affiliated with Jagex. <em>RuneScape</em> is a trademark of Jagex Ltd.
+</footer>
+
+<script src="shared.js"></script>
+<script>
+// Each recipe: { name, productId, materials:[{id,qty,fixedCost?}], craftXp, members }
+// fixedCost = gp cost not from GE (e.g. needle+thread)
+const RECIPES = {
+  dhide: [
+    { name:'Green d\'hide body',   productId:1135, materials:[{id:1753,qty:3}], craftXp:186, members:true, extra:1 },
+    { name:'Blue d\'hide body',    productId:2499, materials:[{id:1751,qty:3}], craftXp:210, members:true, extra:1 },
+    { name:'Red d\'hide body',     productId:2503, materials:[{id:1749,qty:3}], craftXp:234, members:true, extra:1 },
+    { name:'Black d\'hide body',   productId:2507, materials:[{id:1747,qty:3}], craftXp:258, members:true, extra:1 },
+    { name:'Green d\'hide chaps',  productId:1099, materials:[{id:1753,qty:2}], craftXp:124, members:true, extra:1 },
+    { name:'Blue d\'hide chaps',   productId:2493, materials:[{id:1751,qty:2}], craftXp:140, members:true, extra:1 },
+    { name:'Red d\'hide chaps',    productId:2497, materials:[{id:1749,qty:2}], craftXp:156, members:true, extra:1 },
+    { name:'Black d\'hide chaps',  productId:2501, materials:[{id:1747,qty:2}], craftXp:172, members:true, extra:1 },
+    { name:'Green d\'hide vambraces',productId:1065,materials:[{id:1753,qty:1}],craftXp:62,  members:false,extra:1 },
+    { name:'Blue d\'hide vambraces', productId:2487,materials:[{id:1751,qty:1}],craftXp:70,  members:true, extra:1 },
+    { name:'Red d\'hide vambraces',  productId:2489,materials:[{id:1749,qty:1}],craftXp:78,  members:true, extra:1 },
+    { name:'Black d\'hide vambraces',productId:2491,materials:[{id:1747,qty:1}],craftXp:86,  members:true, extra:1 },
+  ],
+  jewellery: [
+    { name:'Gold ring',     productId:1635, materials:[{id:2357,qty:1}], craftXp:15,  members:false, extra:1 },
+    { name:'Sapphire ring', productId:1637, materials:[{id:2357,qty:1},{id:1623,qty:1}], craftXp:40, members:false, extra:1 },
+    { name:'Emerald ring',  productId:1639, materials:[{id:2357,qty:1},{id:1621,qty:1}], craftXp:55, members:false, extra:1 },
+    { name:'Ruby ring',     productId:1641, materials:[{id:2357,qty:1},{id:1619,qty:1}], craftXp:70, members:false, extra:1 },
+    { name:'Diamond ring',  productId:1643, materials:[{id:2357,qty:1},{id:1617,qty:1}], craftXp:85, members:false, extra:1 },
+    { name:'Dragonstone ring',productId:1645,materials:[{id:2357,qty:1},{id:1615,qty:1}],craftXp:100,members:true, extra:1 },
+    { name:'Onyx ring',     productId:6575, materials:[{id:2357,qty:1},{id:6571,qty:1}], craftXp:115,members:true, extra:1 },
+    { name:'Gold necklace', productId:1654, materials:[{id:2357,qty:1}], craftXp:20,  members:false, extra:1 },
+    { name:'Sapphire necklace',productId:1656,materials:[{id:2357,qty:1},{id:1623,qty:1}],craftXp:55,members:false,extra:1 },
+    { name:'Ruby necklace', productId:1660, materials:[{id:2357,qty:1},{id:1619,qty:1}], craftXp:75, members:false, extra:1 },
+    { name:'Diamond necklace',productId:1662,materials:[{id:2357,qty:1},{id:1617,qty:1}],craftXp:90,members:false,extra:1 },
+  ],
+  battlestaves: [
+    { name:'Air battlestaff',   productId:1397, materials:[{id:1391,qty:1},{id:1275,qty:1}], craftXp:137.5, members:true },
+    { name:'Water battlestaff', productId:1395, materials:[{id:1391,qty:1},{id:1925,qty:1}], craftXp:100,   members:true },
+    { name:'Earth battlestaff', productId:1399, materials:[{id:1391,qty:1},{id:985,qty:1}],  craftXp:112.5, members:true },
+    { name:'Fire battlestaff',  productId:1393, materials:[{id:1391,qty:1},{id:1249,qty:1}], craftXp:125,   members:true },
+  ],
+};
+
+let priceMap = {}, currentCategory = 'dhide', sortKey = 'profit-desc';
+
+async function loadData() {
+  try {
+    const res = await fetch('/api/prices');
+    if (res.status === 202) { setTimeout(loadData, 3000); return; }
+    const json = await res.json();
+    if (!res.ok) { showError(json.error || res.status); return; }
+    for (const [id, item] of Object.entries(json.allPrices || {})) {
+      priceMap[id] = item.high || item.low || null;
+    }
+    updateCacheStatus(json.lastUpdated, json.nextUpdate);
+    renderTable();
+  } catch(e) { showError(e.message); }
+}
+
+function getRows() {
+  return RECIPES[currentCategory]
+    .map(r => {
+      const productPrice = priceMap[r.productId] ?? null;
+      const matCost = r.materials.reduce((s,m) => s + (priceMap[m.id]??0)*m.qty, 0) + (r.extra||0);
+      const profit  = productPrice !== null ? productPrice - matCost : null;
+      const roi     = (matCost > 0 && profit !== null) ? (profit / matCost) * 100 : null;
+      return { ...r, productPrice, matCost, profit, roi };
+    })
+    .sort((a, b) => {
+      switch(sortKey) {
+        case 'profit-desc': return (b.profit ?? -Infinity) - (a.profit ?? -Infinity);
+        case 'roi-desc':    return (b.roi    ?? -Infinity) - (a.roi    ?? -Infinity);
+        case 'name-asc':    return a.name.localeCompare(b.name);
+        default: return 0;
+      }
+    });
+}
+
+function renderTable() {
+  const rows = getRows();
+  document.getElementById('table-body').innerHTML = rows.map(r => `<tr>
+    <td><div class="item-cell"><div class="item-icon-placeholder"></div><div><div class="item-name">${r.name}</div><div class="item-members">${r.members?'Members':'F2P'}</div></div></div></td>
+    <td class="num muted hide-mobile">${fmt(Math.round(r.matCost))}</td>
+    <td class="num gold-text">${fmt(r.productPrice)}</td>
+    <td class="num"><span class="profit-pill ${profitClass(r.profit)}">${fmtSigned(r.profit!==null?Math.round(r.profit):null)}</span></td>
+    <td class="num hide-mobile">${r.roi!==null?r.roi.toFixed(1)+'%':'—'}</td>
+    <td class="num muted hide-mobile">${r.craftXp}</td>
+    <td class="num muted hide-mobile">—</td>
+  </tr>`).join('');
+
+  const prof = rows.filter(r=>r.profit!==null&&r.profit>0);
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat-item"><strong>${rows.length}</strong>recipes shown</div>
+    <div class="stat-item"><strong>${prof.length}</strong>profitable</div>
+    <div class="stat-item hide-mobile"><strong class="gold-text">${fmt(rows[0]?.profit)}</strong>best profit</div>
+    <div class="stat-item hide-mobile"><strong>${rows[0]?.name??'—'}</strong>top item</div>`;
+  document.getElementById('loading-msg').style.display = 'none';
+  document.getElementById('main-table').style.display  = '';
+}
+
+function setCategory(cat) {
+  currentCategory = cat;
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['dhide','jewellery','battlestaves'][i]===cat));
+  renderTable();
+}
+
+document.getElementById('sort-select').addEventListener('change', e=>{sortKey=e.target.value;renderTable();});
+loadData();
+</script>
+</body>
+</html>

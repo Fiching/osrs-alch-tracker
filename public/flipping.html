@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSRS GE Flipping Calculator — Best Margin Items</title>
+<meta name="description" content="Find the best items to flip on the Grand Exchange in Old School RuneScape. Live instant buy/sell prices and margin data.">
+<!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=YOUR_ADSENSE_PUB_ID" crossorigin="anonymous"></script> -->
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<nav class="site-nav">
+  <a href="/" class="nav-brand">⚗️ AlchTracker</a>
+  <div class="nav-links">
+    <a href="/">High Alch</a>
+    <a href="/superheat.html">Superheat</a>
+    <a href="/flipping.html" class="active">GE Flipping</a>
+    <a href="/crafting.html">Crafting</a>
+    <a href="/guide.html">Guide</a>
+  </div>
+</nav>
+
+<header>
+  <span class="rune-icon">💰</span>
+  <h1>GE Flipping Calculator</h1>
+  <p class="subtitle">Old School RuneScape · Instant buy/sell margins</p>
+  <div class="header-meta">
+    <div class="meta-pill cache-status"><span id="last-updated">Loading…</span><span class="next-update" id="next-update"></span></div>
+  </div>
+</header>
+
+<div class="ad-leaderboard"><!-- AdSense leaderboard 728×90 --></div>
+
+<div class="controls">
+  <div class="search-wrap"><span class="search-icon">⌕</span><input type="text" id="search" placeholder="Search items…" autocomplete="off"></div>
+  <div class="bankroll-wrap"><span class="bankroll-icon">gp</span><input type="number" id="bankroll" placeholder="Bankroll filter…" min="0" step="10000"></div>
+  <select id="sort-select">
+    <option value="margin-desc">Margin: High → Low</option>
+    <option value="roi-desc">ROI %: High → Low</option>
+    <option value="volume-desc">Volume: High → Low</option>
+    <option value="potential-desc">Potential profit: High → Low</option>
+    <option value="name-asc">Name: A → Z</option>
+    <option value="price-desc">Price: High → Low</option>
+  </select>
+  <button class="filter-btn active" id="btn-members" onclick="toggleFilter('membersOnly')">Members</button>
+  <button class="filter-btn" id="btn-f2p" onclick="toggleFilter('f2pOnly')">F2P only</button>
+  <button class="filter-btn" id="btn-min-volume" onclick="toggleFilter('minVolume')">High volume only</button>
+</div>
+
+<div class="stats-bar" id="stats-bar"><div class="stat-item">Loading…</div></div>
+
+<div class="page-body">
+  <div class="table-wrap">
+    <div class="loading" id="loading-msg"><span class="spinner"></span>Fetching prices…</div>
+    <table id="main-table" style="display:none">
+      <thead><tr>
+        <th style="min-width:180px">Item</th>
+        <th class="num hide-mobile">Buy (instant)</th>
+        <th class="num hide-mobile">Sell (instant)</th>
+        <th class="num sorted">Margin</th>
+        <th class="num hide-mobile">ROI %</th>
+        <th class="num hide-mobile">Buy limit</th>
+        <th class="num hide-mobile">Potential profit</th>
+        <th class="num hide-mobile">Vol (5m)</th>
+      </tr></thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+  <div class="ad-sidebar"><!-- AdSense rectangle 300×250 --></div>
+</div>
+
+<div class="prose-page" style="padding-top:1.5rem;">
+  <div class="tip-box"><p><strong>How flipping works:</strong> Buy an item at the instant sell price (low), then sell at the instant buy price (high). The margin is your gross profit per item before the 1% GE tax on sales above 100gp. Potential profit = margin × buy limit (capped at one 4-hour window). High volume items are easier to fill quickly.</p></div>
+</div>
+
+<footer class="site-footer">
+  Prices from <a href="https://prices.runescape.wiki" target="_blank">prices.runescape.wiki</a> ·
+  Not affiliated with Jagex. <em>RuneScape</em> is a trademark of Jagex Ltd.
+</footer>
+
+<script src="shared.js"></script>
+<script>
+// GE tax: 1% on items selling above 100gp, capped at 5M
+function geTax(price) { return price > 100 ? Math.min(Math.floor(price * 0.01), 5_000_000) : 0; }
+
+let allItems = [], filters = { membersOnly: true, f2pOnly: false, minVolume: false };
+let sortKey = 'margin-desc', searchQuery = '', bankrollGp = null;
+
+async function loadData() {
+  try {
+    const res = await fetch('/api/prices');
+    if (res.status === 202) { setTimeout(loadData, 3000); return; }
+    const json = await res.json();
+    if (!res.ok) { showError(json.error || res.status); return; }
+    updateCacheStatus(json.lastUpdated, json.nextUpdate);
+
+    // Build items from allPrices — need both high AND low to calculate margin
+    allItems = Object.entries(json.allPrices || {})
+      .filter(([, item]) => item.high !== null && item.low !== null && item.high > item.low)
+      .map(([id, item]) => {
+        const tax       = geTax(item.high);
+        const margin    = item.high - item.low - tax;
+        const roi       = item.low > 0 ? (margin / item.low) * 100 : null;
+        const potential = item.limit ? margin * item.limit : null;
+        return { id, ...item, tax, margin, roi, potential };
+      });
+
+    renderTable();
+  } catch(e) { showError(e.message); }
+}
+
+function getFiltered() {
+  return allItems
+    .filter(item => {
+      if (filters.membersOnly && !item.members) return false;
+      if (filters.f2pOnly && item.members) return false;
+      if (filters.minVolume && (item.volume === null || item.volume < 50)) return false;
+      if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      if (bankrollGp !== null && item.low > bankrollGp) return false;
+      if (item.margin <= 0) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      switch (sortKey) {
+        case 'margin-desc':    return (b.margin    ?? -Infinity) - (a.margin    ?? -Infinity);
+        case 'roi-desc':       return (b.roi       ?? -Infinity) - (a.roi       ?? -Infinity);
+        case 'volume-desc':    return (b.volume    ?? -1)        - (a.volume    ?? -1);
+        case 'potential-desc': return (b.potential ?? -Infinity) - (a.potential ?? -Infinity);
+        case 'name-asc':       return a.name.localeCompare(b.name);
+        case 'price-desc':     return (b.high      ?? 0)         - (a.high      ?? 0);
+        default: return 0;
+      }
+    });
+}
+
+function renderTable() {
+  const items = getFiltered();
+  document.getElementById('table-body').innerHTML = items.map(item => {
+    const icon = item.iconSlug
+      ? `<img class="item-icon" data-src="https://oldschool.runescape.wiki/images/${item.iconSlug}" alt="">`
+      : `<div class="item-icon-placeholder"></div>`;
+    return `<tr>
+      <td><div class="item-cell">${icon}<div><div class="item-name">${item.name}</div><div class="item-members">${item.members?'Members':'F2P'}</div></div></div></td>
+      <td class="num hide-mobile muted">${fmt(item.low)}</td>
+      <td class="num hide-mobile gold-text">${fmt(item.high)}</td>
+      <td class="num"><span class="profit-pill positive">${fmt(item.margin)}</span></td>
+      <td class="num hide-mobile">${item.roi!==null?item.roi.toFixed(1)+'%':'—'}</td>
+      <td class="num muted hide-mobile">${item.limit?item.limit.toLocaleString():'—'}</td>
+      <td class="num hide-mobile"><span class="profit-pill ${profitClass(item.potential)}">${fmtSigned(item.potential)}</span></td>
+      <td class="num muted hide-mobile">${item.volume!==null?fmt(item.volume):'—'}</td>
+    </tr>`;
+  }).join('');
+
+  wireIcons(document.getElementById('table-body'));
+
+  const avgMargin = items.length ? Math.round(items.reduce((s,i)=>s+i.margin,0)/items.length) : 0;
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat-item"><strong>${items.length.toLocaleString()}</strong>items shown</div>
+    <div class="stat-item"><strong class="gold-text">${fmt(items[0]?.margin)}</strong>best margin</div>
+    <div class="stat-item hide-mobile"><strong>${fmt(avgMargin)}</strong>avg margin</div>
+    <div class="stat-item hide-mobile"><strong>${items[0]?.name??'—'}</strong>top item</div>`;
+  document.getElementById('loading-msg').style.display = 'none';
+  document.getElementById('main-table').style.display  = '';
+}
+
+function toggleFilter(key) {
+  if (key==='f2pOnly'&&!filters.f2pOnly) {
+    filters.membersOnly=false; filters.f2pOnly=true;
+    document.getElementById('btn-members').classList.remove('active');
+    document.getElementById('btn-f2p').classList.add('active');
+  } else if (key==='membersOnly'&&!filters.membersOnly) {
+    filters.f2pOnly=false; filters.membersOnly=true;
+    document.getElementById('btn-f2p').classList.remove('active');
+    document.getElementById('btn-members').classList.add('active');
+  } else if (key==='membersOnly'||key==='f2pOnly') {
+    filters.membersOnly=false; filters.f2pOnly=false;
+    document.getElementById('btn-members').classList.remove('active');
+    document.getElementById('btn-f2p').classList.remove('active');
+  } else {
+    filters[key]=!filters[key];
+    const btnId = key==='minVolume' ? 'btn-min-volume' : 'btn-'+key.replace(/([A-Z])/g,'-$1').toLowerCase();
+    document.getElementById(btnId).classList.toggle('active', filters[key]);
+  }
+  renderTable();
+}
+
+document.getElementById('search').addEventListener('input', e=>{searchQuery=e.target.value.trim();renderTable();});
+document.getElementById('sort-select').addEventListener('change', e=>{sortKey=e.target.value;renderTable();});
+document.getElementById('bankroll').addEventListener('input', e=>{
+  const v=parseFloat(e.target.value);
+  bankrollGp=(!e.target.value||isNaN(v))?null:v;
+  renderTable();
+});
+loadData();
+</script>
+</body>
+</html>
