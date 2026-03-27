@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSRS Superheat Calculator — Profit & XP per Bar</title>
+<meta name="description" content="Calculate profit and Magic XP from Superheat Item in Old School RuneScape. Live ore, coal, and bar prices from the Grand Exchange.">
+<!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=YOUR_ADSENSE_PUB_ID" crossorigin="anonymous"></script> -->
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<nav class="site-nav">
+  <a href="/" class="nav-brand">⚗️ AlchTracker</a>
+  <div class="nav-links">
+    <a href="/">High Alch</a>
+    <a href="/superheat.html" class="active">Superheat</a>
+    <a href="/flipping.html">GE Flipping</a>
+    <a href="/crafting.html">Crafting</a>
+    <a href="/guide.html">Guide</a>
+  </div>
+</nav>
+
+<header>
+  <span class="rune-icon">🔨</span>
+  <h1>Superheat Calculator</h1>
+  <p class="subtitle">Old School RuneScape · Live ore, coal & bar prices</p>
+  <div class="header-meta">
+    <div class="meta-pill" id="coal-pill" style="display:none">
+      Coal price: <span id="coal-price-display" style="color:var(--gold);font-weight:600;">—</span>
+    </div>
+    <div class="meta-pill cache-status"><span id="last-updated">Loading…</span><span class="next-update" id="next-update"></span></div>
+  </div>
+</header>
+
+<div class="ad-leaderboard"><!-- AdSense leaderboard 728×90 --></div>
+
+<div class="controls" style="justify-content:flex-start;">
+  <label style="color:var(--parchment-deep);font-size:.9rem;">Sort by:</label>
+  <select id="sort-select">
+    <option value="profit-desc">Profit/cast: High → Low</option>
+    <option value="profit-asc">Profit/cast: Low → High</option>
+    <option value="name-asc">Name: A → Z</option>
+    <option value="xp-desc">XP/cast: High → Low</option>
+    <option value="coal-desc">Coal needed: High → Low</option>
+  </select>
+  <button class="filter-btn active" id="btn-members" onclick="toggleMembers()">Members</button>
+</div>
+
+<div class="stats-bar" id="stats-bar"><div class="stat-item">Loading…</div></div>
+
+<div class="page-body">
+  <div class="table-wrap">
+    <div class="loading" id="loading-msg"><span class="spinner"></span>Fetching prices…</div>
+    <table id="main-table" style="display:none">
+      <thead><tr>
+        <th style="min-width:160px">Bar</th>
+        <th class="num">Ore cost</th>
+        <th class="num hide-mobile">Coal needed</th>
+        <th class="num hide-mobile">Coal cost</th>
+        <th class="num">Total mat.</th>
+        <th class="num hide-mobile">Bar price</th>
+        <th class="num hide-mobile">Rune cost</th>
+        <th class="num sorted">Profit/cast</th>
+        <th class="num hide-mobile">Profit/hr</th>
+        <th class="num hide-mobile">XP/cast</th>
+      </tr></thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+  <div class="ad-sidebar"><!-- AdSense rectangle 300×250 --></div>
+</div>
+
+<div class="prose-page" style="padding-top:1.5rem;">
+  <div class="tip-box"><p>Superheat Item (level 43 Magic) smelts one ore into a bar without a furnace. Each cast uses 1 Nature rune + 4 Fire runes and grants 53 Magic XP plus the Smithing XP for the bar. At ~1,100 casts/hr it's a popular AFK money-making method combined with Magic training. Coal is required for steel (2), mithril (4), adamantite (6), and runite (8) bars — its live GE price is factored into all calculations.</p><p style="margin-top:.6rem;">⚠️ <strong>Iron bar note:</strong> Normally smelting iron ore at a furnace has a 50% fail rate below level 45 Smithing. Superheat Item <strong>always succeeds</strong> regardless of your Smithing level — so the profit shown for iron bars is accurate with no fail rate applied.</p></div>
+</div>
+
+<footer class="site-footer">
+  Prices from <a href="https://prices.runescape.wiki" target="_blank">prices.runescape.wiki</a> ·
+  Not affiliated with Jagex. <em>RuneScape</em> is a trademark of Jagex Ltd.
+</footer>
+
+<script src="shared.js"></script>
+<script>
+const COAL_ID = 453;
+
+// ores array: primary ore first, then coal (id:453) if needed
+const BARS = [
+  { name:'Bronze bar',     id:2349, ores:[{id:436,qty:1},{id:438,qty:1}], smithXp:6.2,  members:false },
+  { name:'Iron bar',       id:2351, ores:[{id:440,qty:1}],                smithXp:12.5, members:false },
+  { name:'Silver bar',     id:2355, ores:[{id:442,qty:1}],                smithXp:13.7, members:false },
+  { name:'Steel bar',      id:2353, ores:[{id:440,qty:1},{id:453,qty:2}], smithXp:17.5, members:false },
+  { name:'Gold bar',       id:2357, ores:[{id:444,qty:1}],                smithXp:22.5, members:false },
+  { name:'Mithril bar',    id:2359, ores:[{id:447,qty:1},{id:453,qty:4}], smithXp:30,   members:true  },
+  { name:'Adamantite bar', id:2361, ores:[{id:449,qty:1},{id:453,qty:6}], smithXp:37.5, members:true  },
+  { name:'Runite bar',     id:2363, ores:[{id:451,qty:1},{id:453,qty:8}], smithXp:50,   members:true  },
+];
+
+const MAGIC_XP = 53;
+const CASTS_HR = 1100;
+
+let priceMap = {}, natureCost = 202, fireCost = 5, showMembers = true, sortKey = 'profit-desc';
+
+async function loadData() {
+  try {
+    const res = await fetch('/api/prices');
+    if (res.status === 202) { setTimeout(loadData, 3000); return; }
+    const json = await res.json();
+    if (!res.ok) { showError(json.error || res.status); return; }
+
+    for (const [id, item] of Object.entries(json.allPrices || {})) {
+      priceMap[id] = item.high || item.low || null;
+    }
+    natureCost = json.natureCost || 202;
+    fireCost   = Math.round((json.fireCost || 25) / 5);
+
+    // Show live coal price in header
+    const coalPrice = priceMap[COAL_ID];
+    if (coalPrice) {
+      document.getElementById('coal-price-display').textContent = coalPrice.toLocaleString() + ' gp';
+      document.getElementById('coal-pill').style.display = 'inline-flex';
+    }
+
+    updateCacheStatus(json.lastUpdated, json.nextUpdate);
+    renderTable();
+  } catch(e) { showError(e.message); }
+}
+
+function getRows() {
+  const runeCost = natureCost + (fireCost * 4);
+  return BARS
+    .filter(b => showMembers || !b.members)
+    .map(b => {
+      const barPrice = priceMap[b.id] ?? null;
+
+      // Separate coal from primary ore for display
+      const coalEntry    = b.ores.find(o => o.id === COAL_ID);
+      const coalQty      = coalEntry ? coalEntry.qty : 0;
+      const coalUnitPrice = priceMap[COAL_ID] ?? 0;
+      const coalCost     = coalQty * coalUnitPrice;
+
+      // Primary ore cost (everything except coal)
+      const oreCost = b.ores
+        .filter(o => o.id !== COAL_ID)
+        .reduce((sum, o) => sum + (priceMap[o.id] ?? 0) * o.qty, 0);
+
+      const totalMatCost = oreCost + coalCost;
+      const profit       = barPrice !== null ? barPrice - totalMatCost - runeCost : null;
+      const profitHr     = profit !== null ? profit * CASTS_HR : null;
+      const xpCast       = MAGIC_XP + b.smithXp;
+
+      return { ...b, barPrice, oreCost, coalQty, coalCost, totalMatCost, runeCost, profit, profitHr, xpCast };
+    })
+    .sort((a, b) => {
+      switch (sortKey) {
+        case 'profit-desc': return (b.profit  ?? -Infinity) - (a.profit  ?? -Infinity);
+        case 'profit-asc':  return (a.profit  ??  Infinity) - (b.profit  ??  Infinity);
+        case 'name-asc':    return a.name.localeCompare(b.name);
+        case 'xp-desc':     return b.xpCast - a.xpCast;
+        case 'coal-desc':   return b.coalQty - a.coalQty;
+        default: return 0;
+      }
+    });
+}
+
+function renderTable() {
+  const rows     = getRows();
+  const runeCost = natureCost + (fireCost * 4);
+
+  document.getElementById('table-body').innerHTML = rows.map(r => {
+    // Coal column — show "X × Ygp = Zgp" or "—" if no coal
+    const coalDetail = r.coalQty > 0
+      ? `<span style="color:var(--parchment-deep)">${r.coalQty} × ${fmt(priceMap[COAL_ID])}</span>`
+      : '<span class="muted">—</span>';
+    const coalCostCell = r.coalQty > 0
+      ? `<span class="profit-pill negative" style="min-width:0">${fmt(Math.round(r.coalCost))}</span>`
+      : '<span class="muted">—</span>';
+
+    return `<tr>
+      <td><div class="item-cell"><div>
+        <div class="item-name">${r.name}</div>
+        <div class="item-members">${r.members ? 'Members' : 'F2P'}</div>
+      </div></div></td>
+      <td class="num muted">${fmt(Math.round(r.oreCost))}</td>
+      <td class="num hide-mobile">${coalDetail}</td>
+      <td class="num hide-mobile">${coalCostCell}</td>
+      <td class="num">${fmt(Math.round(r.totalMatCost))}</td>
+      <td class="num gold-text hide-mobile">${fmt(r.barPrice)}</td>
+      <td class="num muted hide-mobile">${fmt(runeCost)}</td>
+      <td class="num"><span class="profit-pill ${profitClass(r.profit)}">${fmtSigned(r.profit !== null ? Math.round(r.profit) : null)}</span></td>
+      <td class="num hide-mobile"><span class="profit-pill ${profitClass(r.profitHr)}">${fmtSigned(r.profitHr !== null ? Math.round(r.profitHr) : null)}</span></td>
+      <td class="num muted hide-mobile">${r.xpCast.toFixed(1)}</td>
+    </tr>`;
+  }).join('');
+
+  const prof = rows.filter(r => r.profit !== null && r.profit > 0);
+  const coalPrice = priceMap[COAL_ID] ?? 0;
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat-item"><strong>${rows.length}</strong>bars shown</div>
+    <div class="stat-item"><strong>${prof.length}</strong>profitable</div>
+    <div class="stat-item"><strong class="gold-text">${fmt(coalPrice)}</strong>coal/ea</div>
+    <div class="stat-item hide-mobile"><strong>${fmt(runeCost)}</strong>rune cost/cast</div>`;
+
+  document.getElementById('loading-msg').style.display = 'none';
+  document.getElementById('main-table').style.display  = '';
+}
+
+function toggleMembers() {
+  showMembers = !showMembers;
+  document.getElementById('btn-members').classList.toggle('active', showMembers);
+  renderTable();
+}
+
+document.getElementById('sort-select').addEventListener('change', e => { sortKey = e.target.value; renderTable(); });
+loadData();
+</script>
+</body>
+</html>
