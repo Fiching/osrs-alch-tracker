@@ -43,10 +43,16 @@ async function fetchFromOSRS() {
   const volumes = fivemin.data || fivemin;
 
   const NATURE_RUNE_ID = 561;
+  const FIRE_RUNE_ID   = 554;
+
   const natureRune = prices[NATURE_RUNE_ID];
   const natureCost = natureRune
     ? (natureRune.high || natureRune.low || 202)
     : 202;
+
+  const fireRune     = prices[FIRE_RUNE_ID];
+  const fireRuneEach = fireRune ? (fireRune.high || fireRune.low || 5) : 5;
+  const fireCost     = fireRuneEach * 5;
 
   const items = mapping
     .filter(item => item.highalch && item.highalch > 0)
@@ -71,7 +77,29 @@ async function fetchFromOSRS() {
       };
     });
 
-  return { items, natureCost };
+  // All items price lookup (for flipping, superheat, crafting pages)
+  const allPrices = {};
+  for (const item of mapping) {
+    const p = prices[item.id];
+    if (p) {
+      allPrices[item.id] = {
+        name:     item.name,
+        high:     p.high  || null,
+        low:      p.low   || null,
+        members:  item.members,
+        limit:    item.limit  || null,
+        highalch: item.highalch || 0,
+        lowalch:  item.lowalch  || 0,
+        iconSlug: item.icon ? item.icon.replace(/ /g, '_').replace(/'/g, '%27') : null,
+      };
+    }
+  }
+
+  const COAL_ID   = 453;
+  const coalPrice = prices[COAL_ID];
+  const coalCost  = coalPrice ? (coalPrice.high || coalPrice.low || 200) : 200;
+
+  return { items, natureCost, fireCost, coalCost, allPrices };
 }
 
 // ---------------------------------------------------------------------------
@@ -86,7 +114,7 @@ async function refresh() {
     cache.lastUpdated = new Date().toISOString();
     cache.nextUpdate  = nextUpdate;
     cache.error       = null;
-    console.log(`[cache] updated — ${payload.items.length} items, nature rune ${payload.natureCost} gp`);
+    console.log(`[cache] updated — ${payload.items.length} items, nature rune ${payload.natureCost} gp, fire runes ${payload.fireCost} gp`);
   } catch (err) {
     cache.error      = err.message;
     cache.nextUpdate = nextUpdate;
@@ -135,3 +163,4 @@ app.get('/health', (req, res) => {
 app.listen(PORT, () => {
   console.log(`OSRS Alch Tracker running on http://localhost:${PORT}`);
 });
+
