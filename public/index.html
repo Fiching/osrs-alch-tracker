@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSRS High Alch Profit Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #c9a227;
+    --gold-light: #e8c457;
+    --gold-dim: #8a6e1a;
+    --parchment: #f5ead8;
+    --parchment-dark: #e8d5b0;
+    --parchment-deep: #d4b87a;
+    --ink: #2a1f0e;
+    --ink-mid: #4a3820;
+    --ink-light: #7a6048;
+    --bg: #1a1208;
+    --surface: #221a0c;
+    --surface-2: #2e2210;
+    --border: rgba(201, 162, 39, 0.2);
+    --border-bright: rgba(201, 162, 39, 0.5);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Crimson Pro', Georgia, serif;
+    background: var(--bg);
+    color: var(--parchment);
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(201,162,39,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 100%, rgba(201,162,39,0.04) 0%, transparent 60%);
+  }
+
+  header {
+    text-align: center;
+    padding: 2.5rem 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(to bottom, rgba(201,162,39,0.05), transparent);
+  }
+
+  .rune-icon { font-size: 2rem; margin-bottom: 0.5rem; display: block; filter: drop-shadow(0 0 8px rgba(201,162,39,0.4)); }
+
+  h1 {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1.4rem, 4vw, 2.2rem);
+    font-weight: 600;
+    color: var(--gold-light);
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 20px rgba(201,162,39,0.3);
+    margin-bottom: 0.25rem;
+  }
+
+  .subtitle { font-size: 1rem; color: var(--ink-light); font-style: italic; font-weight: 300; }
+
+  .header-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 1rem;
+  }
+
+  .nature-rune-cost {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    font-size: 0.9rem;
+    color: var(--parchment-deep);
+  }
+  .nature-rune-cost span { color: var(--gold); font-weight: 600; }
+
+  .cache-status {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    font-size: 0.8rem;
+    color: var(--ink-light);
+    font-style: italic;
+    line-height: 1.4;
+  }
+  .cache-status .next-update { color: var(--gold-dim); font-size: 0.75rem; }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .search-wrap { flex: 1; min-width: 200px; position: relative; }
+  .search-wrap input {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 12px 8px 36px;
+    color: var(--parchment);
+    font-family: 'Crimson Pro', serif;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-wrap input:focus { border-color: var(--border-bright); }
+  .search-wrap input::placeholder { color: var(--ink-light); }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ink-light); font-size: 14px; pointer-events: none; }
+
+  select {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: var(--parchment);
+    font-family: 'Crimson Pro', serif;
+    font-size: 1rem;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  select:focus { border-color: var(--border-bright); }
+  option { background: var(--surface-2); }
+
+  .filter-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 14px;
+    color: var(--parchment-deep);
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .filter-btn:hover { border-color: var(--border-bright); color: var(--parchment); }
+  .filter-btn.active { background: rgba(201,162,39,0.1); border-color: var(--gold-dim); color: var(--gold-light); }
+
+  .stats-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .stat-item { flex: 1; text-align: center; padding: 0.75rem 0.5rem; border-right: 1px solid var(--border); font-size: 0.8rem; color: var(--ink-light); }
+  .stat-item:last-child { border-right: none; }
+  .stat-item strong { display: block; font-size: 1.1rem; color: var(--gold); font-weight: 600; }
+
+  .table-wrap { overflow-x: auto; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+
+  thead th {
+    background: var(--surface);
+    padding: 10px 12px;
+    text-align: left;
+    font-family: 'Cinzel', serif;
+    font-size: 0.72rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: var(--gold-dim);
+    border-bottom: 1px solid var(--border-bright);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+  }
+  thead th:hover { color: var(--gold-light); }
+  thead th.sorted { color: var(--gold-light); }
+
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: rgba(201,162,39,0.04); }
+
+  td { padding: 9px 12px; vertical-align: middle; color: var(--parchment); }
+
+  .item-cell { display: flex; align-items: center; gap: 10px; }
+  .item-icon { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; flex-shrink: 0; }
+  .item-icon-placeholder { width: 32px; height: 32px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 2px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--ink-light); }
+  .item-name { font-weight: 400; }
+  .item-members { font-size: 0.7rem; color: var(--gold-dim); font-style: italic; }
+
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .gold-text { color: var(--gold); }
+
+  .profit-pill { display: inline-block; padding: 2px 8px; border-radius: 3px; font-weight: 600; font-size: 0.9rem; text-align: right; min-width: 80px; }
+  .profit-pill.positive  { background: rgba(45,106,45,0.15);  color: #6dbd6d; border: 1px solid rgba(45,106,45,0.3); }
+  .profit-pill.negative  { background: rgba(122,32,32,0.15);  color: #e07070; border: 1px solid rgba(122,32,32,0.3); }
+  .profit-pill.break-even{ background: rgba(201,162,39,0.1);  color: var(--gold); border: 1px solid rgba(201,162,39,0.2); }
+
+  .roi-bar-wrap { display: flex; align-items: center; gap: 6px; min-width: 100px; }
+  .roi-bar-bg { flex: 1; height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
+  .roi-bar-fill { height: 100%; border-radius: 2px; }
+  .roi-label { font-size: 0.8rem; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .loading { text-align: center; padding: 4rem 1rem; color: var(--ink-light); font-style: italic; font-size: 1.1rem; }
+  .loading .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 10px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error { text-align: center; padding: 3rem 1rem; color: #e07070; font-style: italic; }
+
+  footer { text-align: center; padding: 1.5rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--ink-light); font-style: italic; }
+  footer a { color: var(--gold-dim); text-decoration: none; }
+  footer a:hover { color: var(--gold); }
+
+  @media (max-width: 600px) {
+    .hide-mobile { display: none; }
+    td, th { padding: 8px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="rune-icon">🔥</span>
+  <h1>High Alch Profit Tracker</h1>
+  <p class="subtitle">Old School RuneScape · Grand Exchange prices</p>
+  <div class="header-meta">
+    <div class="nature-rune-cost">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="nature-rune-toggle" checked style="accent-color:var(--gold);width:14px;height:14px;cursor:pointer;">
+        Subtract nature rune: <span id="nature-cost">—</span>
+      </label>
+    </div>
+    <div class="cache-status" id="cache-status">
+      <span id="last-updated">Loading prices…</span>
+      <span class="next-update" id="next-update"></span>
+    </div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="search" placeholder="Search items…" autocomplete="off">
+  </div>
+  <select id="sort-select">
+    <option value="profit-desc">Profit: High → Low</option>
+    <option value="profit-asc">Profit: Low → High</option>
+    <option value="roi-desc">ROI: High → Low</option>
+    <option value="alch-desc">Alch value: High → Low</option>
+    <option value="name-asc">Name: A → Z</option>
+    <option value="price-desc">GE price: High → Low</option>
+    <option value="volume-desc">Volume: High → Low</option>
+  </select>
+  <button class="filter-btn" id="btn-profit-only" onclick="toggleFilter('profitOnly')">Profit only</button>
+  <button class="filter-btn active" id="btn-members" onclick="toggleFilter('membersOnly')">Members</button>
+  <button class="filter-btn" id="btn-f2p" onclick="toggleFilter('f2pOnly')">F2P only</button>
+</div>
+
+<div class="stats-bar" id="stats-bar">
+  <div class="stat-item">Loading…</div>
+</div>
+
+<div class="table-wrap">
+  <div class="loading" id="loading-msg"><span class="spinner"></span>Fetching prices…</div>
+  <table id="main-table" style="display:none">
+    <thead>
+      <tr>
+        <th onclick="setSort('name-asc')" style="width:220px">Item</th>
+        <th onclick="setSort('alch-desc')" class="num hide-mobile">High Alch</th>
+        <th onclick="setSort('price-desc')" class="num">GE Price</th>
+        <th onclick="setSort('profit-desc')" class="num sorted">Profit</th>
+        <th onclick="setSort('volume-desc')" class="num hide-mobile">Vol (5m)</th>
+        <th onclick="setSort('roi-desc')" class="hide-mobile" style="min-width:120px">ROI</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<footer>
+  Prices from <a href="https://prices.runescape.wiki/api/v1/osrs" target="_blank">prices.runescape.wiki</a> ·
+  <a href="https://oldschool.runescape.wiki" target="_blank">OSRS Wiki</a> ·
+  Not affiliated with Jagex. <em>RuneScape</em> is a trademark of Jagex Ltd.
+</footer>
+
+<script>
+const ICON_BASE = 'https://oldschool.runescape.wiki/images/';
+
+let allItems = [];
+let filters = { profitOnly: false, membersOnly: true, f2pOnly: false };
+let sortKey = 'profit-desc';
+let searchQuery = '';
+let subtractNatureRune = true;
+let cachedNatureCost = 202;
+let nextUpdateTime = null;
+let countdownInterval = null;
+
+function fmt(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (Math.abs(n) >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+  return n.toLocaleString();
+}
+
+function fmtProfit(p) {
+  if (p === null || p === undefined) return '—';
+  return (p >= 0 ? '+' : '') + fmt(p);
+}
+
+function fmtCountdown(ms) {
+  if (ms <= 0) return 'updating soon';
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `next update in ${m}m ${s.toString().padStart(2, '0')}s`;
+}
+
+function startCountdown() {
+  if (countdownInterval) clearInterval(countdownInterval);
+  if (!nextUpdateTime) return;
+  const el = document.getElementById('next-update');
+  countdownInterval = setInterval(() => {
+    const remaining = new Date(nextUpdateTime) - Date.now();
+    el.textContent = fmtCountdown(remaining);
+    if (remaining <= 0) {
+      clearInterval(countdownInterval);
+      loadData();
+    }
+  }, 1000);
+}
+
+async function loadData() {
+  try {
+    const res = await fetch('/api/prices');
+
+    // Server cache is still warming (202) — retry in 3s
+    if (res.status === 202) {
+      setTimeout(loadData, 3000);
+      return;
+    }
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      document.getElementById('loading-msg').innerHTML =
+        `<div class="error">Server error: ${json.error || res.status}</div>`;
+      return;
+    }
+
+    cachedNatureCost = json.natureCost || 202;
+    document.getElementById('nature-cost').textContent = cachedNatureCost.toLocaleString() + ' gp';
+
+    // Last updated: show as local time
+    if (json.lastUpdated) {
+      const d = new Date(json.lastUpdated);
+      document.getElementById('last-updated').textContent =
+        'Prices from ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Kick off countdown to next server refresh
+    nextUpdateTime = json.nextUpdate;
+    startCountdown();
+
+    allItems = json.items;
+    renderTable();
+
+  } catch (e) {
+    document.getElementById('loading-msg').innerHTML =
+      `<div class="error">Could not reach server.<br><small>${e.message}</small></div>`;
+  }
+}
+
+function getFiltered() {
+  const natureCost = subtractNatureRune ? cachedNatureCost : 0;
+  let items = allItems
+    .map(item => {
+      const profit = item.gePrice !== null ? item.highalch - item.gePrice - natureCost : null;
+      const roi    = (item.gePrice && item.gePrice > 0 && profit !== null)
+        ? (profit / item.gePrice) * 100 : null;
+      return { ...item, profit, roi };
+    })
+    .filter(item => {
+      if (filters.profitOnly && (item.profit === null || item.profit <= 0)) return false;
+      if (filters.membersOnly && !item.members) return false;
+      if (filters.f2pOnly && item.members) return false;
+      if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      if (item.gePrice === null) return false;
+      return true;
+    });
+
+  items.sort((a, b) => {
+    switch (sortKey) {
+      case 'profit-desc': return (b.profit  ?? -Infinity) - (a.profit  ?? -Infinity);
+      case 'profit-asc':  return (a.profit  ?? Infinity)  - (b.profit  ?? Infinity);
+      case 'roi-desc':    return (b.roi     ?? -Infinity) - (a.roi     ?? -Infinity);
+      case 'alch-desc':   return b.highalch - a.highalch;
+      case 'name-asc':    return a.name.localeCompare(b.name);
+      case 'price-desc':  return (b.gePrice ?? 0) - (a.gePrice ?? 0);
+      case 'volume-desc': return (b.volume  ?? -1) - (a.volume  ?? -1);
+      default: return 0;
+    }
+  });
+  return items;
+}
+
+function renderTable() {
+  const items = getFiltered();
+  const tbody = document.getElementById('table-body');
+  const maxRoi = Math.max(...items.filter(i => i.roi !== null).map(i => i.roi), 1);
+
+  tbody.innerHTML = items.map(item => {
+    const profitClass = item.profit > 0 ? 'positive' : item.profit < 0 ? 'negative' : 'break-even';
+    const roiPct   = item.roi !== null ? Math.min(item.roi, maxRoi) / maxRoi * 100 : 0;
+    const roiColor = item.roi > 0 ? '#6dbd6d' : '#e07070';
+    const iconUrl  = item.iconSlug ? ICON_BASE + item.iconSlug : null;
+
+    const roiDisplay = item.roi !== null
+      ? `<div class="roi-bar-wrap">
+           <div class="roi-bar-bg"><div class="roi-bar-fill" style="width:${roiPct.toFixed(1)}%;background:${roiColor}"></div></div>
+           <span class="roi-label" style="color:${roiColor}">${item.roi.toFixed(1)}%</span>
+         </div>`
+      : '—';
+
+    const iconHtml = iconUrl
+      ? `<img class="item-icon" src="${iconUrl}" alt="" onerror="this.outerHTML='<div class=\\"item-icon-placeholder\\">?</div>'">`
+      : `<div class="item-icon-placeholder">?</div>`;
+
+    return `<tr>
+      <td>
+        <div class="item-cell">
+          ${iconHtml}
+          <div>
+            <div class="item-name">${item.name}</div>
+            <div class="item-members">${item.members ? 'Members' : 'F2P'}</div>
+          </div>
+        </div>
+      </td>
+      <td class="num gold-text hide-mobile">${fmt(item.highalch)}</td>
+      <td class="num">${fmt(item.gePrice)}</td>
+      <td class="num"><span class="profit-pill ${profitClass}">${fmtProfit(item.profit)}</span></td>
+      <td class="num hide-mobile" style="color:var(--ink-light)">${item.volume !== null ? fmt(item.volume) : '—'}</td>
+      <td class="hide-mobile">${roiDisplay}</td>
+    </tr>`;
+  }).join('');
+
+  const profItems = items.filter(i => i.profit !== null && i.profit > 0);
+  const avgProfit = profItems.length
+    ? Math.round(profItems.reduce((s, i) => s + i.profit, 0) / profItems.length) : 0;
+  const bestItem = items[0];
+
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat-item"><strong>${items.length.toLocaleString()}</strong>items shown</div>
+    <div class="stat-item"><strong>${profItems.length.toLocaleString()}</strong>profitable</div>
+    <div class="stat-item"><strong class="gold-text">${fmt(avgProfit)}</strong>avg profit</div>
+    <div class="stat-item hide-mobile"><strong>${bestItem ? bestItem.name.split(' ').slice(-1)[0] : '—'}</strong>top item</div>
+  `;
+
+  document.getElementById('loading-msg').style.display = 'none';
+  document.getElementById('main-table').style.display = '';
+}
+
+function setSort(key) {
+  sortKey = key;
+  document.getElementById('sort-select').value = key;
+  document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
+  renderTable();
+}
+
+function toggleFilter(key) {
+  if (key === 'f2pOnly' && !filters.f2pOnly) {
+    filters.membersOnly = false; filters.f2pOnly = true;
+    document.getElementById('btn-members').classList.remove('active');
+    document.getElementById('btn-f2p').classList.add('active');
+  } else if (key === 'membersOnly' && !filters.membersOnly) {
+    filters.f2pOnly = false; filters.membersOnly = true;
+    document.getElementById('btn-f2p').classList.remove('active');
+    document.getElementById('btn-members').classList.add('active');
+  } else if (key === 'membersOnly' || key === 'f2pOnly') {
+    filters.membersOnly = false; filters.f2pOnly = false;
+    document.getElementById('btn-members').classList.remove('active');
+    document.getElementById('btn-f2p').classList.remove('active');
+  } else {
+    filters[key] = !filters[key];
+    document.getElementById('btn-' + key.replace(/([A-Z])/g, '-$1').toLowerCase())
+      .classList.toggle('active', filters[key]);
+  }
+  renderTable();
+}
+
+document.getElementById('nature-rune-toggle').addEventListener('change', e => {
+  subtractNatureRune = e.target.checked;
+  renderTable();
+});
+document.getElementById('search').addEventListener('input', e => {
+  searchQuery = e.target.value.trim();
+  renderTable();
+});
+document.getElementById('sort-select').addEventListener('change', e => setSort(e.target.value));
+
+loadData();
+</script>
+
+</body>
+</html>
