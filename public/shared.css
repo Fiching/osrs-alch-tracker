@@ -67,16 +67,16 @@ option{background:var(--surface-2);}
 .stat-item strong{display:block;font-size:1rem;color:var(--gold);font-weight:600;}
 
 /* ── Page body (table + sidebar) ── */
-.page-body{display:flex;align-items:flex-start;}
-.table-wrap{flex:1;overflow-x:auto;min-width:0;}
+.page-body{display:flex;align-items:flex-start;width:100%;}
+.table-wrap{flex:1;overflow-x:auto;min-width:0;width:100%;}
 
 /* ── Table ── */
-table{width:100%;border-collapse:collapse;font-size:.9rem;}
-thead th{background:var(--surface);padding:9px 11px;text-align:left;font-family:'Cinzel',serif;font-size:.66rem;font-weight:400;letter-spacing:.08em;color:var(--gold-dim);border-bottom:1px solid var(--border-bright);white-space:nowrap;cursor:pointer;user-select:none;transition:color .15s;}
+table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.9rem;}
+thead th{background:var(--surface);padding:9px 11px;text-align:left;font-family:'Cinzel',serif;font-size:.66rem;font-weight:400;letter-spacing:.08em;color:var(--gold-dim);border-bottom:1px solid var(--border-bright);white-space:nowrap;cursor:pointer;user-select:none;transition:color .15s;overflow:hidden;text-overflow:ellipsis;}
 thead th:hover,thead th.sorted{color:var(--gold-light);}
 tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
 tbody tr:hover{background:rgba(201,162,39,.04);}
-td{padding:7px 11px;vertical-align:middle;color:var(--parchment);}
+td{padding:7px 11px;vertical-align:middle;color:var(--parchment);overflow:hidden;text-overflow:ellipsis;}
 .item-cell{display:flex;align-items:center;gap:9px;}
 .item-icon{width:30px;height:30px;object-fit:contain;image-rendering:pixelated;flex-shrink:0;}
 .item-icon-placeholder{width:30px;height:30px;background:var(--surface-2);border:1px solid var(--border);border-radius:2px;flex-shrink:0;}
@@ -101,7 +101,8 @@ td{padding:7px 11px;vertical-align:middle;color:var(--parchment);}
 .error-msg{text-align:center;padding:2.5rem 1rem;color:#e07070;font-style:italic;}
 
 /* ── Guide / prose pages ── */
-.prose-page{max-width:860px;margin:0 auto;padding:2rem 1.5rem;}
+.prose-page{width:100%;padding:2rem 1.5rem;}
+.prose-page.centered{max-width:860px;margin:0 auto;}
 .prose-page h2{font-family:'Cinzel',serif;font-size:1.3rem;font-weight:400;color:var(--gold-light);margin:2rem 0 .75rem;letter-spacing:.04em;}
 .prose-page h3{font-family:'Cinzel',serif;font-size:1rem;font-weight:400;color:var(--gold-dim);margin:1.5rem 0 .5rem;letter-spacing:.04em;}
 .prose-page p{line-height:1.75;color:var(--parchment);margin-bottom:1rem;font-size:1.05rem;}
